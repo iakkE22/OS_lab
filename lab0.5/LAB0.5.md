@@ -76,7 +76,7 @@ Remote debugging using localhost:1234
 
 然后直接将断点打至`0x80200000`处，用`continue`执行过去一探究竟
 
-在执行`break *0x80200000`并'comntinue'时，发现终端弹出提示
+在执行`break *0x80200000`并'continue'时，发现终端弹出提示
 ```bash
 Continuing.
 
@@ -159,6 +159,19 @@ s7             0x8	8
 
 在这之后，系统初始化进程会继续启动其他服务和应用程序，在窗口系统、网络服务等最后都启动完毕后，系统达到完全运行状态，准备用户登录与交互。
 ## 实验总结
-总而言之，qemu要首先进行复位，并将程序跳转至`0x80000000`处,运行操作系统的bootloader，进行大量准备工作，然后运行至`0x80200000`处，加载操作系统的内核，完成操作系统的运行。系统启动过程涉及 bootloader 引导内核，并开始进行硬件初始化和内存设置，一环扣一环地进入用户态。这正对应着操作系统中启动过程的关键步骤。
+总而言之，qemu要首先进行复位，并将程序跳转至`0x80000000`处,运行操作系统的bootloader，进行大量准备工作，然后运行至`0x80200000`处，加载操作系统的内核，完成操作系统的运行。系统启动过程涉及 bootloader 引导内核，并开始进行硬件初始化和内存设置，一环扣一环地进入用户态。这正对应着操作系统中启动过程的关键步骤。具体流程图如下所示：
 
+```mermaid
+sequenceDiagram
+    participant QEMU
+    participant CPU
+    participant Bootloader
+    participant Kernel
+    QEMU->>CPU: Power on
+    CPU->>Bootloader: Jump to 0x80000000
+    Bootloader->>Bootloader: Prepare environment
+    Bootloader->>Kernel: Jump to 0x80200000
+    Kernel->>Kernel: Initialize
+    Kernel->>Kernel: Start user processes
+```
 通过本次实验，我们验证了 RISC-V 架构的 CPU 启动流程，并通过调试工具深入了解了引导程序和内核的执行。QEMU 模拟器帮助我们观察了寄存器的变化过程，展现了系统的初始化阶段。
