@@ -53,3 +53,5 @@ dkms.conf
 
 # 编译出的二进制文件
 bin/
+obj/
+.vscode/
