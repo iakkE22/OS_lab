@@ -16,7 +16,7 @@
 
 答：
 
-​	在遇到`Page Fault`时，最先是`kern/trap/trap.c`中的`pgfault_handler`函数进行处理，其中的`trapFrame`传递了`badvaddr`给`do_pgfault()`函数:`badvaddr`即`stval`寄存器中数值，存储访问出错的虚拟地址。
+​    在遇到`Page Fault`时，最先是`kern/trap/trap.c`中的`pgfault_handler`函数进行处理，其中的`trapFrame`传递了`badvaddr`给`do_pgfault()`函数:`badvaddr`即`stval`寄存器中数值，存储访问出错的虚拟地址。
 
 ```c
 static int pgfault_handler(struct trapframe *tf) {
@@ -28,7 +28,7 @@ static int pgfault_handler(struct trapframe *tf) {
     panic("unhandled page fault.\n");
 }
 ```
-​	然后便是页面转换机制的核心，`kern/mm/vmm.c`中的`do_pgfault`函数，在接受`pgfault_handler`中传入的访问出错的虚拟地址等相关参数后，检查虚拟地址的合法性，并尝试为该地址分配物理页面或从交换区载入页面，确保进程可以继续访问该虚拟地址。
+​    然后便是页面转换机制的核心，`kern/mm/vmm.c`中的`do_pgfault`函数，在接受`pgfault_handler`中传入的访问出错的虚拟地址等相关参数后，检查虚拟地址的合法性，并尝试为该地址分配物理页面或从交换区载入页面，确保进程可以继续访问该虚拟地址。
 ```c
 int
 do_pgfault(struct mm_struct *mm, uint_t error_code, uintptr_t addr) {
@@ -68,7 +68,7 @@ failed:
     return ret;
 }
 ```
-​	可以看到`do_pgfault`函数中，`struct vma_struct *vma = find_vma(mm, addr);`语句调用了同样位于`kern/mm/vmm.c`的`find_vma`函数，其接受传入的访问出错的虚拟地址参数，查找包含指定虚拟地址`addr`的虚拟内存区域`VMA`：如果找到合适的`vma_struct`结构体，则返回该区域的指针,否则返回 `NULL`,以确认地址是否合法。
+​    可以看到`do_pgfault`函数中，`struct vma_struct *vma = find_vma(mm, addr);`语句调用了同样位于`kern/mm/vmm.c`的`find_vma`函数，其接受传入的访问出错的虚拟地址参数，查找包含指定虚拟地址`addr`的虚拟内存区域`VMA`：如果找到合适的`vma_struct`结构体，则返回该区域的指针,否则返回 `NULL`,以确认地址是否合法。
 ```c
 struct vma_struct *
 find_vma(struct mm_struct *mm, uintptr_t addr) {
@@ -96,7 +96,7 @@ find_vma(struct mm_struct *mm, uintptr_t addr) {
     return vma;
 }
 ```
-​	然后在`do_pgfault`函数中，`ptep = get_pte(mm->pgdir, addr, 1); `处调用了位于`kern/mm/pmm.c`的`get_pte`函数，该函数从页目录`pgdir`中获取给定线性地址`addr`的页表项`PTE`：如果该页表项不存在，并且`create`参数为`true`，则会尝试分配新的页表页，并初始化相关的页目录和页表项，从而确保地址`addr`在页表中有对应的有效页表项。
+​	   然后在`do_pgfault`函数中，`ptep = get_pte(mm->pgdir, addr, 1); `处调用了位于`kern/mm/pmm.c`的`get_pte`函数，该函数从页目录`pgdir`中获取给定线性地址`addr`的页表项`PTE`：如果该页表项不存在，并且`create`参数为`true`，则会尝试分配新的页表页，并初始化相关的页目录和页表项，从而确保地址`addr`在页表中有对应的有效页表项。
 ```c
 pte_t *get_pte(pde_t *pgdir, uintptr_t la, bool create) {
     pde_t *pdep1 = &pgdir[PDX1(la)];
@@ -126,7 +126,7 @@ pte_t *get_pte(pde_t *pgdir, uintptr_t la, bool create) {
     return &((pte_t *)KADDR(PDE_ADDR(*pdep0)))[PTX(la)];
 }
 ```
-​	接下来是`do_pgfault`函数中，`if (pgdir_alloc_page(mm->pgdir, addr, perm) == NULL) `中对位于`kern/mm/pmm.c`的`pgdir_alloc_page`函数的调用，该函数在页目录`pgdir`中为给定的线性地址`addr`分配并插入一个新的物理页面，并根据参数设置页面的权限`perm`；同时如果系统支持交换机制，即`swap_init_ok`为真，该函数还会将页面标记为可交换，以支持将页面换出内存。
+​	   接下来是`do_pgfault`函数中，`if (pgdir_alloc_page(mm->pgdir, addr, perm) == NULL) `中对位于`kern/mm/pmm.c`的`pgdir_alloc_page`函数的调用，该函数在页目录`pgdir`中为给定的线性地址`addr`分配并插入一个新的物理页面，并根据参数设置页面的权限`perm`；同时如果系统支持交换机制，即`swap_init_ok`为真，该函数还会将页面标记为可交换，以支持将页面换出内存。
 ```c
 struct Page *pgdir_alloc_page(pde_t *pgdir, uintptr_t la, uint32_t perm) {
     struct Page *page = alloc_page();
@@ -149,7 +149,7 @@ struct Page *pgdir_alloc_page(pde_t *pgdir, uintptr_t la, uint32_t perm) {
     return page;
 }
 ```
-​	顺序梳理完`do_pgfault`函数中调用的所有函数后，我们对这些被调用的函数中进行层层梳理，并简要的对以下函数的作用进行阐述。
+​	   顺序梳理完`do_pgfault`函数中调用的所有函数后，我们对这些被调用的函数中进行层层梳理，并简要的对以下函数的作用进行阐述。
 ​	**首先是`find_vma`函数中调用的`list_next`函数与`le2vma`函数**
 
 - `list_next`函数对链表进行操作，用于获取链表中下一个节点的指针;
@@ -177,6 +177,7 @@ get_pte()函数（位于`kern/mm/pmm.c`）用于在页表中查找或创建页�
 
 答：
     首先我们要了解`sv32`，`sv39`，`sv48`在不同方面的异同，才能够对`get_pte()`函数中两段代码形式类似的现象做出解释。 
+    
     `sv32`、`sv39` 和 `sv48` 是 RISC-V 架构中的三种页表模式，分别适用于不同位宽和地址空间需求。以下从不同方面介绍它们的异同。
 
 1. **地址空间与位宽**
@@ -227,9 +228,11 @@ get_pte()函数（位于`kern/mm/pmm.c`）用于在页表中查找或创建页�
 | 虚拟地址位宽    | 32 位            | 39 位           | 48 位            |
 | 索引位数（每级）| 10 位            | 9 位            | 9 位             |
 
-​	此时便可以对`get_pte()`函数中两段代码形式类似的现象做出解释。
-​	首先会有两段代码，是因为函数需要处理`sv39`的三级页表结构，需要逐级检查和分配页面，确保最终能够定位或创建用于虚拟地址到物理地址映射的页表项，这里的两段代码分别负责处理初始页表级别与第二页表级别。
-​	此时观察下面两段相似的代码，发现其只有开头的赋值语句`pde_t *pdep1 = &pgdir[PDX1(la)]`与`pde_t *pdep0 = &((pde_t *)KADDR(PDE_ADDR(*pdep1)))[PDX0(la)]`不同，对于后续的处理是完全相同的，就是因为`sv39`的前两个页表项结构相同，函数只需要依次按照多级页表的映射关系，找到下一级的页目录或者页表项，或在其他情况下，进行重新分配，所以如此相似。
+    此时便可以对`get_pte()`函数中两段代码形式类似的现象做出解释。
+
+​	   首先会有两段代码，是因为函数需要处理`sv39`的三级页表结构，需要逐级检查和分配页面，确保最终能够定位或创建用于虚拟地址到物理地址映射的页表项，这里的两段代码分别负责处理初始页表级别与第二页表级别。
+
+​	   此时观察下面两段相似的代码，发现其只有开头的赋值语句`pde_t *pdep1 = &pgdir[PDX1(la)]`与`pde_t *pdep0 = &((pde_t *)KADDR(PDE_ADDR(*pdep1)))[PDX0(la)]`不同，对于后续的处理是完全相同的，就是因为`sv39`的前两个页表项结构相同，函数只需要依次按照多级页表的映射关系，找到下一级的页目录或者页表项，或在其他情况下，进行重新分配，所以如此相似。
 
 ```c
     pde_t *pdep1 = &pgdir[PDX1(la)];                              //不同
@@ -258,11 +261,11 @@ get_pte()函数（位于`kern/mm/pmm.c`）用于在页表中查找或创建页�
     }
     return &((pte_t *)KADDR(PDE_ADDR(*pdep0)))[PTX(la)];          //处理最后一级页表
 ```
-​	而`RISCV`同样支持`sv32`与`sv48`的页面框架，由于`sv32`只有两级页表，所以此处只会有一段代码和一个return；而`sv48`有四级页表，此处就会有三段代码和一个return。但是，所有对于单级页表项进行处理的代码，不论是`sv32`，`sv39`还是`sv48`，因为虚拟地址位宽与每级索引位数的不同没有在代码形式上被体现出来，都应该是相似的。
+​	   而`RISCV`同样支持`sv32`与`sv48`的页面框架，由于`sv32`只有两级页表，所以此处只会有一段代码和一个return；而`sv48`有四级页表，此处就会有三段代码和一个return。但是，所有对于单级页表项进行处理的代码，不论是`sv32`，`sv39`还是`sv48`，因为虚拟地址位宽与每级索引位数的不同没有在代码形式上被体现出来，都应该是相似的。
 
-​	下面我们来分析get_pte()函数将页表项的查找和页表项的分配合并在一个函数里的必要性与否。
+​	   下面我们来分析get_pte()函数将页表项的查找和页表项的分配合并在一个函数里的必要性与否。
 
-​	我们认为在 `get_pte()` 函数中，将**页表项的查找和分配**逻辑合并在一起，这在 RISC-V 多级页表结构中显得尤为必要。这样的合并既简化了代码逻辑，提高了性能和内存利用率，同时也适应了不同页表模式下的需求。原因如下：
+​	   我们认为在 `get_pte()` 函数中，将**页表项的查找和分配**逻辑合并在一起，这在 RISC-V 多级页表结构中显得尤为必要。这样的合并既简化了代码逻辑，提高了性能和内存利用率，同时也适应了不同页表模式下的需求。原因如下：
 
 1. **简化调用流程，减少重复代码：**在多级页表结构中，如果将查找和分配逻辑分开，代码会变得非常复杂,但若是`get_pte()` 合并查找与分配后，操作系统只需一次调用就能完成查找和必要的分配，避免编写重复代码。
 
@@ -290,7 +293,7 @@ get_pte()函数（位于`kern/mm/pmm.c`）用于在页表中查找或创建页�
 
 答：
 
-​	采用“一页表大页映射”方式（也称为单级页表映射），即将整个虚拟地址空间映射到一个大的页表中，不使用多级页表结构，这种方式在特定情况下确实有一些好处，但也伴随着一定的劣势和风险。
+​	   采用“一页表大页映射”方式（也称为单级页表映射），即将整个虚拟地址空间映射到一个大的页表中，不使用多级页表结构，这种方式在特定情况下确实有一些好处，但也伴随着一定的劣势和风险。
 
 **好处与优势**
 
