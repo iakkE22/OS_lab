@@ -348,5 +348,90 @@ get_pte()函数（位于`kern/mm/pmm.c`）用于在页表中查找或创建页�
 #### 扩展练习 Challenge：实现不考虑实现开销和效率的LRU页替换算法（需要编程）
 challenge部分不是必做部分，不过在正确最后会酌情加分。需写出有详细的设计、分析和测试的实验报告。完成出色的可获得适当加分。
 
+##### 设计
 
+LRU的思想虽然与FIFO不同，但是其实现是类似的：都是通过维护一个链表结构来确定swap_out时选出的页，只是LRU需要不断更新整个链表结构
+
+关于实现有三种方案：
+
+- 借助tick事件，绑定swap_tick函数来定期更新lru链表（在一次tick下，至多只有一次内存写入），每次都检查是否被写入过，如果被写入，则将写入标记设为0，并将其放到队列尾部（从队列头部取出最久未使用页面）
+- 通过设定页面权限，每次调用的map_swap函数时（任意的内存错误），将除了所需页面对应addr的页面全部设置为只读，所需页面设置为读写，以在之后的写入中触发同样的函数，这样就能够实现反复的更新；对于pgfault_num增大的问题，添加判断函数，如果是由于权限导致（通过页面是否存在即可），则pgfault_num--，认为不是错误
+- 修改写入功能，写入必须调用access_memory，该函数在完成写入后自动调用`_lru_map_swappable`，实现自动更新状态
+
+最终采用的实现为第三种
+
+##### 实现的问题
+
+- 方案1：在check_swap的过程中，整个系统是被阻塞的，不会自动计数，导致不可能绑定tick事件
+- 方案2：通过权限异常触发的错误，会引发一次alloc_pages，而该函数会自动调用swap_out，造成链表头被弹出，可能弹出本来有用的页
+- 方案3：这种方案最简单，但是开销也是巨大的，在每次写入时都要强制更新页面，更新页面的开销大于实际写入的开销
+
+##### 测试
+
+**测试代码**：
+
+```c
+    access_memory(0x3000, 0x0c);
+    cprintf("page fault num: %d\n", pgfault_num);
+    assert(pgfault_num == 4);
+    access_memory(0x1000, 0x0a);
+    assert(pgfault_num == 4);
+    access_memory(0x4000, 0x0d);
+    assert(pgfault_num == 4);
+    access_memory(0x2000, 0x0b);
+    assert(pgfault_num == 4);
+    access_memory(0x5000, 0x0e);
+    assert(pgfault_num == 5);
+    access_memory(0x2000, 0x0b);
+    assert(pgfault_num == 5);
+    access_memory(0x1000, 0x0a);
+    assert(pgfault_num == 5);
+    access_memory(0x2000, 0x0b);
+    assert(pgfault_num == 5);
+    access_memory(0x3000, 0x0c);
+    assert(pgfault_num == 6);
+    access_memory(0x4000, 0x0d);
+    assert(pgfault_num == 7);
+    access_memory(0x5000, 0x0e);
+    assert(pgfault_num == 8);
+    assert(*(unsigned char *)0x1000 == 0x0a);
+    access_memory(0x1000, 0x0a);
+    assert(pgfault_num == 9);
+```
+
+结果推导：略过初始化步骤，链表中的顺序为1234（1是最久未被使用，使用y代替0xy000这样的地址），+代表出现一次pgfault，此前pgfault_num==4
+
+| 写入 | 目前状态 |
+| ---- | -------- |
+| 3    | 1243     |
+| 1    | 2431     |
+| 4    | 2314     |
+| 2    | 3142     |
+| 5    | 1425+    |
+| 2    | 1452     |
+| 1    | 4521     |
+| 2    | 4512     |
+| 3    | 5123+    |
+| 4    | 1234+    |
+| 5    | 2345+    |
+| 1    | 3451+    |
+
+共计9次pg_fault，这与推导是相符的
+
+**测试结果**：
+
+```
+...略
+page fault at 0x00001000: K/R
+swap_out: i 0, store page in vaddr 0x2000 to disk swap entry 3
+swap_in: load disk swap entry 2 with swap_page in vadr 0x1000
+count is 1, total is 8
+check_swap() succeeded!
+++ setup timer interrupts
+100 ticks
+100 ticks
+100 ticks
+100 ticks
+100 ticks
+```
 
