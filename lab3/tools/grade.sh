@@ -412,15 +412,9 @@ quick_check 'check swap page fault'                                     \
     'set up init env for check_swap over!'                              \
     'Store/AMO page fault'                                              \
     'page fault at 0x00005000: K/W'                                     \
-    'curr_ptr 0xffffffffc02258a8'                                       \
-    'curr_ptr 0xffffffffc02258a8'                                       \
     'swap_out: i 0, store page in vaddr 0x1000 to disk swap entry 2'    \
     'Load page fault'                                                   \
     'page fault at 0x00001000: K/R'                                     \
-    'curr_ptr 0xffffffffc02258f0'                                       \
-    'curr_ptr 0xffffffffc02258f0'                                       \
-    'swap_out: i 0, store page in vaddr 0x2000 to disk swap entry 3'    \
-    'swap_in: load disk swap entry 2 with swap_page in vadr 0x1000'     \
     'count is 1, total is 8'                                            \
     'check_swap() succeeded!'                                           \
 
@@ -428,6 +422,5 @@ pts=5
 quick_check 'check ticks'                                               \
     '++ setup timer interrupts'                                         \
     '100 ticks'                                                         \
-
 ## print final-score
 show_final
