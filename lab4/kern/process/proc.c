@@ -86,7 +86,7 @@ static struct proc_struct *
 alloc_proc(void) {
     struct proc_struct *proc = kmalloc(sizeof(struct proc_struct));
     if (proc != NULL) {
-    //LAB4:EXERCISE1 YOUR CODE
+    //LAB4:EXERCISE1 2210636
     /*
      * below fields in proc_struct need to be initialized
      *       enum proc_state state;                      // Process state
@@ -102,8 +102,18 @@ alloc_proc(void) {
      *       uint32_t flags;                             // Process flag
      *       char name[PROC_NAME_LEN + 1];               // Process name
      */
-
-
+    proc->state = PROC_UNINIT;
+    proc->pid = -1;
+    proc->runs = 0;
+    proc->kstack = 0;
+    proc->need_resched = 0;
+    proc->parent = NULL;
+    proc->mm = NULL;
+    memset(&(proc->context), 0, sizeof(struct context));
+    proc->tf = NULL;
+    proc->cr3 = boot_cr3;
+    proc->flags = 0;
+    memset(proc->name, 0, PROC_NAME_LEN + 1);
     }
     return proc;
 }
@@ -163,7 +173,7 @@ get_pid(void) {
 void
 proc_run(struct proc_struct *proc) {
     if (proc != current) {
-        // LAB4:EXERCISE3 YOUR CODE
+        // LAB4:EXERCISE3 2213788
         /*
         * Some Useful MACROs, Functions and DEFINEs, you can use them in below implementation.
         * MACROs or Functions:
@@ -172,7 +182,12 @@ proc_run(struct proc_struct *proc) {
         *   lcr3():                   Modify the value of CR3 register
         *   switch_to():              Context switching between two processes
         */
-       
+        local_intr_save(current->need_resched);
+        lcr3(proc->cr3);
+        struct proc_struct *prev = current;
+        current = proc;
+        switch_to(&(prev->context), &(proc->context));
+        local_intr_restore(proc->need_resched);
     }
 }
 
@@ -273,7 +288,7 @@ do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf) {
         goto fork_out;
     }
     ret = -E_NO_MEM;
-    //LAB4:EXERCISE2 YOUR CODE
+    //LAB4:EXERCISE2 2212602
     /*
      * Some Useful MACROs, Functions and DEFINEs, you can use them in below implementation.
      * MACROs or Functions:
@@ -299,7 +314,23 @@ do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf) {
     //    6. call wakeup_proc to make the new child process RUNNABLE
     //    7. set ret vaule using child proc's pid
 
-    
+    proc = alloc_proc();
+    if (proc == NULL)
+    {
+        goto bad_fork_cleanup_kstack;
+    }
+    proc->pid = get_pid();
+    setup_kstack(proc);
+    if (copy_mm(clone_flags, proc) != 0)
+    {
+        goto bad_fork_cleanup_proc;
+    }
+    copy_thread(proc, stack, tf);
+    hash_proc(proc);
+    list_add(&proc_list, &(proc->list_link));
+    wakeup_proc(proc);
+    // cprintf("do_fork: pid = %d\n", proc->pid);
+    ret = proc->pid;
 
 fork_out:
     return ret;

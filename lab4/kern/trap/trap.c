@@ -84,7 +84,7 @@ void print_regs(struct pushregs *gpr) {
 }
 
 static inline void print_pgfault(struct trapframe *tf) {
-    cprintf("page falut at 0x%08x: %c/%c\n", tf->badvaddr,
+    cprintf("page fault at 0x%08x: %c/%c\n", tf->badvaddr,
             trap_in_kernel(tf) ? 'K' : 'U',
             tf->cause == CAUSE_STORE_PAGE_FAULT ? 'W' : 'R');
 }
