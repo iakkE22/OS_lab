@@ -432,5 +432,5 @@ static inline void __intr_restore(bool flag) {
 
 然后` local_intr_restore(x)` 函数会传入`x`作为`flag`标志位 ，若`x`为`1` ，即已中断，那么 `__intr_restore`函数便会进入if分支，调用 `intr_enable();` 恢复进程：即若进程中断，`x==1`会被检测到，进程会被恢复。
 
-如此两个函数配合，便可以实现开关的中断与恢复。s
+如此两个函数配合，便可以实现开关的中断与恢复。
 
