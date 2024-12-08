@@ -345,12 +345,13 @@ proc_run(struct proc_struct *proc)
 {
     if (proc != current) 
     {
-        local_intr_save(current->need_resched);
+        bool intr_flag;
+        local_intr_save(intr_flag);
         lcr3(proc->cr3);
         struct proc_struct *prev = current;
         current = proc;
         switch_to(&(prev->context), &(proc->context));
-        local_intr_restore(proc->need_resched);
+        local_intr_restore(intr_flag);
     }
 }
 ```
